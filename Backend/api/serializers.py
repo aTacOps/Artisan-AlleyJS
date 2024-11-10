@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
     """Serializer for user registration and basic user details."""
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password')
+        fields = ('id', 'username', 'password')
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -19,12 +19,18 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    """Serializer for user profile details."""
     user = UserSerializer(read_only=True)
 
     class Meta:
         model = Profile
         fields = ('user', 'bio', 'game_location', 'in_game_name', 'completed_jobs', 'recent_completed_jobs', 'can_create_store')
+
+
+    def create(self, validated_data):
+        user = validated_data.pop('user', None)
+        if not user:
+            raise serializers.ValidationError({'user': 'User instance is required to create a profile.'})
+        return Profile.objects.create(user=user, **validated_data)
 
 
 class JobSerializer(serializers.ModelSerializer):

@@ -16,8 +16,8 @@ from .serializers import (
 )
 from django.db.models import Q
 from rest_framework.decorators import action
-from rest_framework import generics
-from rest_framework import IsAuthenticated, AllowAny
+from rest_framework import generics, filters
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 # Signup view
 class SignupView(APIView):
@@ -26,20 +26,39 @@ class SignupView(APIView):
     def post(self, request):
         user_serializer = UserSerializer(data=request.data)
         profile_serializer = ProfileSerializer(data=request.data)
+        
         if user_serializer.is_valid() and profile_serializer.is_valid():
             user = user_serializer.save()
             profile_serializer.save(user=user)
             return Response(user_serializer.data, status=status.HTTP_201_CREATED)
+
+        # Log errors for debugging
+        print("User Serializer Errors:", user_serializer.errors)
+        print("Profile Serializer Errors:", profile_serializer.errors)
+        
         return Response(
             {**user_serializer.errors, **profile_serializer.errors},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
 
 # Job views
 class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    ordering_fields = ['date_posted', 'deadline', 'status']  # Specify fields for sorting
+
+    # Define filter fields
+    filterset_fields = {
+        'in_game_name': ['exact', 'icontains'],
+        'server': ['exact', 'icontains'],
+        'node': ['exact', 'icontains'],
+        'item_category': ['exact', 'icontains'],
+        'status': ['exact'],
+    }
 
     def perform_create(self, serializer):
         serializer.save(posted_by=self.request.user)
@@ -66,15 +85,29 @@ class BidViewSet(viewsets.ModelViewSet):
     def accept(self, request, pk=None):
         bid = self.get_object()
         job = bid.job
+
+        # Ensure only the job poster can accept the bid
+        if request.user != job.posted_by:
+            return Response(
+                {"error": "Only the job poster can accept this bid."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Prevent accepting multiple bids for the same job
         if job.accepted_bid:
-            return Response({"error": "A bid has already been accepted for this job."}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {"error": "A bid has already been accepted for this job."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         bid.accepted = True
         bid.save()
         job.accepted_bid = bid
         job.status = 'accepted'
         job.save()
+
         return Response({"message": "Bid accepted successfully."}, status=status.HTTP_200_OK)
+
 
 class ProfileViewSet(viewsets.GenericViewSet):
     queryset = Profile.objects.all()

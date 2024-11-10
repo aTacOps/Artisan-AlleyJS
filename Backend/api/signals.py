@@ -11,43 +11,29 @@ from django.contrib.auth.models import User
 def create_or_update_user_profile(sender, instance, **kwargs):
     Profile.objects.get_or_create(user=instance)
 
-@receiver(post_save, sender=Bid)
-def notify_bid_update(sender, instance, created, **kwargs):
-    """Notify job poster when a new bid is placed or an existing bid is updated."""
-    content = f"New bid placed on your job '{instance.job.items_requested}'." if created else f"A bid on your job '{instance.job.items_requested}' has been updated."
-    notification_type = 'new_bid' if created else 'bid_update'
-    
-    job_detail_url = reverse('job-detail', args=[instance.job.id])  # API or frontend route for job detail
+@receiver(post_save, sender=Job)
+def notify_job_updates(sender, instance, created, **kwargs):
+    if created:
+        # Notify job poster on new job creation
+        content = f"New job '{instance.items_requested}' posted."
+        notification_type = 'new_job'
+    else:
+        # Notify on job details update
+        content = f"The details for the job '{instance.items_requested}' have been updated."
+        notification_type = 'job_update'
 
-    # Create a notification for the job poster
+    job_detail_url = reverse('job-detail', args=[instance.id])
+    
+    # Notify job poster
     Notification.objects.create(
-        recipient=instance.job.posted_by,
+        recipient=instance.posted_by,
         content=content,
         type=notification_type,
         link=job_detail_url
     )
 
-@receiver(post_save, sender=Job)
-def notify_job_status_update(sender, instance, **kwargs):
-    """Notify job poster of job status updates (e.g., accepted, completed, delivered)."""
-    content = f"The status of your job '{instance.items_requested}' has been updated to {instance.status}."
-    job_detail_url = reverse('job-detail', args=[instance.id])
-
-    Notification.objects.create(
-        recipient=instance.posted_by,
-        content=content,
-        type='job_status',
-        link=job_detail_url
-    )
-
-@receiver(post_save, sender=Job)
-def notify_job_update(sender, instance, created, **kwargs):
-    """Notify all bidders when a job's details are updated."""
+    # Notify all bidders on the job for updates
     if not created:
-        content = f"The details for the job '{instance.items_requested}' have been updated."
-        job_detail_url = reverse('job-detail', args=[instance.id])
-
-        # Notify all bidders on the job
         for bid in instance.bids.all():
             Notification.objects.create(
                 recipient=bid.bidder,
@@ -55,6 +41,7 @@ def notify_job_update(sender, instance, created, **kwargs):
                 type='job_update',
                 link=job_detail_url
             )
+
 
 @receiver(post_save, sender=ServiceRequest)
 def notify_service_request(sender, instance, created, **kwargs):
@@ -81,13 +68,3 @@ def notify_certification_feedback(sender, instance, **kwargs):
         type='cert_feedback'
     )
 
-@receiver(post_save, sender=Job)
-def job_status_delivered_notification(sender, instance, **kwargs):
-    """Notify the accepted bidder when the job status is marked as delivered."""
-    if instance.status == 'delivered' and instance.accepted_bid:
-        Notification.objects.create(
-            recipient=instance.accepted_bid.bidder,
-            type='job_status',
-            content=f"The job '{instance.items_requested}' has been marked as delivered by the job poster.",
-            link=reverse('job-detail', args=[instance.id])
-        )
