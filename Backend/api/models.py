@@ -59,6 +59,9 @@ class Job(models.Model):
     accepted_bid = models.ForeignKey('Bid', null=True, blank=True, on_delete=models.SET_NULL, related_name='accepted_jobs')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='posted')
     
+    class Meta:
+        ordering = ['-date_posted']
+
     def save(self, *args, **kwargs):
         # Calculate total_copper if not already set
         if self.total_copper == 0:
@@ -145,6 +148,9 @@ class Bid(models.Model):
     note = models.TextField(blank=True)
     date_bid = models.DateTimeField(auto_now_add=True)
     accepted = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('job', 'bidder')
 
     def save(self, *args, **kwargs):
         # Calculate proposed_price_copper if not already set

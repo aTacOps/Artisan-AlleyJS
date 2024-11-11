@@ -1,37 +1,44 @@
 import axios from "axios";
-import { ACCESS_TOKEN } from "./constants";
-import { useNavigate } from "react-router-dom"; // Ensure React Router is used in your app
-
-const apiUrl = "/choreo-apis/awbo/backend/rest-api-be2/v1.0";
+import { useContext } from "react";
+import { AuthContext } from "./context/AuthContext";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : apiUrl,
+    baseURL: import.meta.env.VITE_API_URL || "/api",
 });
 
-// Add request interceptor for attaching the Authorization header
+// Add request interceptor for attaching Authorization header
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem(ACCESS_TOKEN);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
+    (config) => {
+        const token = localStorage.getItem("ACCESS_TOKEN");
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
 );
 
-// Add response interceptor for handling 404 errors
+// Add response interceptor to handle 401 errors and refresh token
 api.interceptors.response.use(
-  (response) => response, // Pass through successful responses
-  (error) => {
-    if (error.response && error.response.status === 404) {
-      const navigate = useNavigate(); // Use React Router's navigation
-      navigate("/login"); // Redirect to login page (adjust to register if needed)
+    (response) => response,
+    async (error) => {
+        if (error.response.status === 401) {
+            const refreshToken = localStorage.getItem("REFRESH_TOKEN");
+            if (refreshToken) {
+                try {
+                    const response = await axios.post("/api/token/refresh/", { refresh: refreshToken });
+                    localStorage.setItem("ACCESS_TOKEN", response.data.access);
+                    error.config.headers.Authorization = `Bearer ${response.data.access}`;
+                    return axios(error.config);
+                } catch (refreshError) {
+                    console.error("Token refresh failed:", refreshError);
+                    const { logout } = useContext(AuthContext);
+                    logout();
+                }
+            }
+        }
+        return Promise.reject(error);
     }
-    return Promise.reject(error);
-  }
 );
 
 export default api;

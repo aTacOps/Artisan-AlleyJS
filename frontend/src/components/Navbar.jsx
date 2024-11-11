@@ -26,6 +26,15 @@ function Navbar() {
                         <button className="nav-button" onClick={() => navigate("/jobs")}>
                             Jobs
                         </button>
+                        <button className="nav-button" onClick={() => navigate("/post-job")}>
+                            Post a Job
+                        </button>
+                        <button className="nav-button" onClick={() => navigate("/my-bids")}>
+                            My Bids
+                        </button>
+                        <button className="nav-button" onClick={() => navigate("/my-jobs")}>
+                            My Jobs
+                        </button>
                         <button className="nav-button" onClick={handleLogout}>
                             Logout
                         </button>

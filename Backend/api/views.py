@@ -14,12 +14,30 @@ from .serializers import (
     UserSerializer, ProfileSerializer, JobSerializer, BidSerializer,
     CertificationRequestSerializer, StoreSerializer, ServiceRequestSerializer, NotificationSerializer
 )
-from django.db.models import Q
-from rest_framework.decorators import action
+from django.db.models.functions import Coalesce
+from django.db.models import Q, Count, Avg
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import generics, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
+import logging
 
-# Signup view
+logger = logging.getLogger(__name__)
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    logger.debug(f"Authorization Header: {request.headers.get('Authorization')}")
+    if not request.user.is_authenticated:
+        return Response({"detail": "Authentication credentials were not provided."}, status=401)
+
+    user_data = {
+        "id": request.user.id,
+        "username": request.user.username,
+    }
+    return Response(user_data)
+
 class SignupView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -45,29 +63,46 @@ class SignupView(APIView):
 
 # Job views
 class JobViewSet(viewsets.ModelViewSet):
-    queryset = Job.objects.all()
+    queryset = Job.objects.annotate(
+        bid_count=Coalesce(Count('bids'), 0),
+        average_bid=Coalesce(Avg('bids__proposed_price_copper'), 0.0)  # Average in copper
+    ).order_by('-date_posted')
     serializer_class = JobSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    ordering_fields = ['date_posted', 'deadline', 'status']  # Specify fields for sorting
+    ordering_fields = ['date_posted', 'deadline', 'status',]
 
-    # Define filter fields
-    filterset_fields = {
-        'in_game_name': ['exact', 'icontains'],
-        'server': ['exact', 'icontains'],
-        'node': ['exact', 'icontains'],
-        'item_category': ['exact', 'icontains'],
-        'status': ['exact'],
-    }
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        logger.debug(f"Jobs Queryset: {queryset}")
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(posted_by=self.request.user)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='my-jobs')
     def my_jobs(self, request):
-        jobs = Job.objects.filter(posted_by=request.user)
+        jobs = Job.objects.filter(posted_by=request.user).annotate(
+            bid_count=Count('bids'),
+            average_bid=Avg('bids__proposed_price_copper')
+        )
         serializer = self.get_serializer(jobs, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path="bids")
+    def bids(self, request, pk=None):
+        """
+        Retrieve all bids for a specific job.
+        """
+        job = self.get_object()
+        if job.posted_by != request.user:
+            return Response({"detail": "Not authorized to view bids for this job."}, status=403)
+
+        bids = job.bids.all()
+        serializer = BidSerializer(bids, many=True)
+        return Response(serializer.data)
+
+
 
 # Bid views
 class BidViewSet(viewsets.ModelViewSet):
@@ -75,11 +110,33 @@ class BidViewSet(viewsets.ModelViewSet):
     serializer_class = BidSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def list(self, request, job_id=None):
+        """
+        List all bids for a specific job.
+        """
+        job = get_object_or_404(Job, id=job_id)
+
+        # Ensure the user is authorized to view the bids
+        if job.posted_by != request.user:
+            return Response({"detail": "Not authorized to view bids for this job."}, status=403)
+
+        bids = job.bids.all()
+        serializer = self.get_serializer(bids, many=True)
+        return Response(serializer.data)
+
     def perform_create(self, serializer):
         job = get_object_or_404(Job, id=self.kwargs['job_id'])
+
+        # Check if the user has already placed a bid on this job
+        if Bid.objects.filter(job=job, bidder=self.request.user).exists():
+            raise serializers.ValidationError("You have already placed a bid on this job.")
+
         if job.accepted_bid:
-            return Response({"error": "This job already has an accepted bid."}, status=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError("This job already has an accepted bid.")
+
         serializer.save(bidder=self.request.user, job=job)
+
+
 
     @action(detail=True, methods=['post'])
     def accept(self, request, pk=None):
@@ -107,6 +164,13 @@ class BidViewSet(viewsets.ModelViewSet):
         job.save()
 
         return Response({"message": "Bid accepted successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='my-bids')
+    def my_bids(self, request):
+        """Retrieve all bids placed by the current user."""
+        bids = Bid.objects.filter(bidder=request.user)
+        serializer = self.get_serializer(bids, many=True)
+        return Response(serializer.data)
 
 
 class ProfileViewSet(viewsets.GenericViewSet):

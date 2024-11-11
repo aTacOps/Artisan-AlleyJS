@@ -1,9 +1,9 @@
-# urls.py
-
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views import current_user
 
+# Set up the DefaultRouter
 router = DefaultRouter()
 router.register(r'jobs', views.JobViewSet, basename='job')
 router.register(r'bids', views.BidViewSet, basename='bid')
@@ -15,10 +15,25 @@ router.register(r'certification-requests', views.CertificationRequestViewSet, ba
 urlpatterns = [
     # Authentication
     path('signup/', views.SignupView.as_view(), name='signup'),
+    path('current-user/', current_user, name='current-user'),
     
     # Notifications
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
-    
-    # Include router URLs
+
+    # Nested route for job bids
+    path(
+        'jobs/<int:job_id>/bids/',
+        views.BidViewSet.as_view({'get': 'list', 'post': 'create'}),
+        name='job-bids'
+    ),
+
+    # Custom endpoint for "My Bids"
+    path(
+        'bids/my-bids/',
+        views.BidViewSet.as_view({'get': 'my_bids'}),
+        name='my-bids'
+    ),
+
+    # Include router URLs (only include this once)
     path('', include(router.urls)),
 ]
