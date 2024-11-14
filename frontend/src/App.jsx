@@ -9,6 +9,7 @@ import Jobs from "./pages/Jobs";
 import PostJob from "./pages/PostJob";
 import MyJobs from "./pages/MyJobs"; // Add this import
 import MyBids from "./pages/MyBids";
+import Profile from "./pages/Profile";
 
 function App() {
     return (
@@ -23,6 +24,8 @@ function App() {
                     <Route path="/jobs" element={<Jobs />} />
                     <Route path="/my-bids" element={<MyBids />} />
                     <Route path="/post-job" element={<PostJob />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/profile/:userId" element={<Profile />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>

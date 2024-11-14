@@ -1,0 +1,128 @@
+/* Profile container styling */
+.profile-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Profile header */
+.profile-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.profile-header h1 {
+    margin: 0;
+    font-size: 2em;
+    color: #333;
+}
+
+.profile-header p {
+    margin: 5px 0;
+    font-size: 1.2em;
+    color: #555;
+}
+
+/* Profile details */
+.profile-details {
+    margin-bottom: 20px;
+}
+
+.profile-details h2 {
+    font-size: 1.5em;
+    color: #333;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.profile-details p {
+    font-size: 1em;
+    color: #555;
+    margin: 10px 0;
+}
+
+/* Job history section */
+.job-history {
+    margin-top: 20px;
+}
+
+.job-history h3 {
+    font-size: 1.3em;
+    color: #333;
+    margin-bottom: 10px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.job-history ul {
+    list-style: none;
+    padding: 0;
+}
+
+.job-history li {
+    padding: 10px;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+.job-history li h4 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #333;
+}
+
+.job-history li p {
+    margin: 5px 0;
+    font-size: 0.9em;
+    color: #555;
+}
+
+/* Buttons */
+.profile-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.profile-actions button {
+    padding: 10px 20px;
+    font-size: 1em;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 0 10px;
+}
+
+.profile-actions button:hover {
+    background-color: #0056b3;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .profile-container {
+        padding: 15px;
+    }
+
+    .profile-header h1 {
+        font-size: 1.8em;
+    }
+
+    .profile-details h2 {
+        font-size: 1.3em;
+    }
+
+    .profile-actions button {
+        padding: 8px 16px;
+        font-size: 0.9em;
+    }
+}

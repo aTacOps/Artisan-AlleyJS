@@ -8,7 +8,9 @@ function Jobs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null); // Store current user info
+  const [currentUser, setCurrentUser] = useState(null);
+  const [nextPage, setNextPage] = useState(null);
+  const [prevPage, setPrevPage] = useState(null);
 
   // Helper function to format currency
   const formatCurrency = (copper) => {
@@ -19,14 +21,21 @@ function Jobs() {
   };
 
   // Fetch jobs and current user
-  const fetchJobs = async () => {
+  const fetchJobs = async (url = "/api/jobs/") => {
     try {
       const [jobsResponse, userResponse] = await Promise.all([
-        api.get("/api/jobs/"),
+        api.get(url),
         api.get("/api/current-user/"), // Endpoint to fetch current user
       ]);
-      console.log("Jobs API Response:", jobsResponse.data);
-      setJobs(jobsResponse.data.results);
+
+      // Filter jobs to show only those with status "posted"
+      const filteredJobs = jobsResponse.data.results.filter(
+        (job) => job.status === "posted"
+      );
+
+      setJobs(filteredJobs);
+      setNextPage(jobsResponse.data.next);
+      setPrevPage(jobsResponse.data.previous);
       setCurrentUser(userResponse.data);
     } catch (err) {
       console.error("Error fetching jobs or user info:", err);
@@ -91,6 +100,12 @@ function Jobs() {
           ))}
         </ul>
       )}
+
+      {/* Pagination controls */}
+      <div className="pagination-controls">
+        {prevPage && <button onClick={() => fetchJobs(prevPage)}>Previous</button>}
+        {nextPage && <button onClick={() => fetchJobs(nextPage)}>Next</button>}
+      </div>
 
       {/* Modal for bidding */}
       {selectedJob && (

@@ -5,7 +5,7 @@ import "../styles/Home.css";
 
 function Home() {
     const navigate = useNavigate();
-    const { isAuthenticated } = useContext(AuthContext);
+    const { isAuthenticated, currentUser } = useContext(AuthContext); // Access currentUser
 
     if (!isAuthenticated) {
         return (
@@ -25,10 +25,11 @@ function Home() {
 
     return (
         <div className="home-container">
-            <h1>Welcome Back to Artisan Alley!</h1>
-            <button className="home-button" onClick={() => navigate("/logout")}>
+            <h1>Welcome Back to Artisan Alley{currentUser ? `, ${currentUser.username}` : ""}!</h1>
+            {/* Uncomment below if logout functionality is added */}
+            {/* <button className="home-button" onClick={() => navigate("/logout")}>
                 Logout
-            </button>
+            </button> */}
         </div>
     );
 }

@@ -20,6 +20,8 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import generics, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny
 import logging
+from django.utils import timezone
+
 
 logger = logging.getLogger(__name__)
 
@@ -66,13 +68,14 @@ class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.annotate(
         bid_count=Coalesce(Count('bids'), 0),
         average_bid=Coalesce(Avg('bids__proposed_price_copper'), 0.0)  # Average in copper
-    ).order_by('-date_posted')
+    ).select_related('accepted_bid', 'accepted_bid__bidder').order_by('-date_posted')
     serializer_class = JobSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     ordering_fields = ['date_posted', 'deadline', 'status',]
 
     def get_queryset(self):
+        # Debugging: Print annotated fields
         queryset = super().get_queryset()
         logger.debug(f"Jobs Queryset: {queryset}")
         return queryset
@@ -85,7 +88,7 @@ class JobViewSet(viewsets.ModelViewSet):
         jobs = Job.objects.filter(posted_by=request.user).annotate(
             bid_count=Count('bids'),
             average_bid=Avg('bids__proposed_price_copper')
-        )
+        ).select_related('accepted_bid', 'accepted_bid__bidder')
         serializer = self.get_serializer(jobs, many=True)
         return Response(serializer.data)
 
@@ -101,6 +104,29 @@ class JobViewSet(viewsets.ModelViewSet):
         bids = job.bids.all()
         serializer = BidSerializer(bids, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='accept-bid')
+    def accept_bid(self, request, pk=None):
+        job = self.get_object()
+        bid_id = request.data.get('bid_id')
+        if not bid_id:
+            return Response({"error": "Bid ID is required."}, status=400)
+
+        bid = job.bids.filter(id=bid_id).first()
+        if not bid:
+            return Response({"error": "Bid not found."}, status=404)
+
+        if job.accepted_bid:
+            return Response({"error": "A bid has already been accepted for this job."}, status=400)
+
+        bid.accepted = True
+        bid.save()
+        job.accepted_bid = bid
+        job.status = 'accepted'
+        job.save()
+
+        return Response({"message": "Bid accepted successfully."}, status=200)
+
 
 
 
@@ -165,6 +191,43 @@ class BidViewSet(viewsets.ModelViewSet):
 
         return Response({"message": "Bid accepted successfully."}, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['post'], url_path='mark-completed')
+    def mark_as_completed(self, request, pk=None):
+        bid = self.get_object()
+        job = bid.job  # Get the related job
+
+        # Ensure the job is in the accepted state
+        if job.status != 'accepted':
+            return Response({"error": "Job is not in an accepted state."}, status=400)
+
+        # Mark the job as completed and set the completion date
+        job.status = 'completed'
+        job.completed_date = timezone.now()
+        job.save()
+
+        return Response({"message": "Job marked as completed successfully."}, status=200)
+
+    @action(detail=True, methods=['post'], url_path='mark-delivered')
+    def mark_as_delivered(self, request, pk=None):
+        job = self.get_object()
+        if job.status != 'completed':
+            return Response({"error": "Job must be completed before marking as delivered."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark the job as delivered
+        job.status = 'delivered'
+        job.delivered_date = now()
+        job.save()
+
+        # Update the poster's profile stats
+        profile = job.posted_by.profile
+        profile.completed_jobs += 1
+        profile.add_to_history(job.items_requested, job.delivered_date)
+
+        return Response({"message": "Job marked as delivered successfully."}, status=status.HTTP_200_OK)
+
+
+
     @action(detail=False, methods=['get'], url_path='my-bids')
     def my_bids(self, request):
         """Retrieve all bids placed by the current user."""
@@ -172,24 +235,62 @@ class BidViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(bids, many=True)
         return Response(serializer.data)
 
+    def update(self, request, *args, **kwargs):
+        bid = self.get_object()
+        if bid.accepted:
+            return Response({"error": "Cannot edit an accepted bid."}, status=400)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        bid = self.get_object()
+        if bid.accepted:
+            return Response({"error": "Cannot delete an accepted bid."}, status=400)
+        return super().destroy(request, *args, **kwargs)
+
+
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 class ProfileViewSet(viewsets.GenericViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    @action(detail=False, methods=['get', 'put'])
+    @action(detail=False, methods=['get', 'post', 'put'])
     def me(self, request):
+        # Handle GET request: Retrieve or create the profile
         if request.method == 'GET':
-            profile = self.request.user.profile
+            profile, created = Profile.objects.get_or_create(user=request.user)
             serializer = self.get_serializer(profile)
             return Response(serializer.data)
+
+        # Handle POST request: Create a profile
+        elif request.method == 'POST':
+            data = request.data.copy()
+            data['user'] = request.user.id  # Associate the profile with the current user
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=201)
+
+        # Handle PUT request: Update the profile
         elif request.method == 'PUT':
-            profile = self.request.user.profile
+            profile = Profile.objects.get(user=request.user)
             serializer = self.get_serializer(profile, data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='view')
+    def view_profile(self, request, pk=None):
+        """Retrieve another user's profile."""
+        try:
+            profile = self.get_object()
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data)
+        except Profile.DoesNotExist:
+            return Response({"error": "Profile not found."}, status=404)
+
 
 # Store views
 class StoreViewSet(viewsets.ModelViewSet):

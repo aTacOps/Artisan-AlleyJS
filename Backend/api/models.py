@@ -58,7 +58,8 @@ class Job(models.Model):
     posted_by = models.ForeignKey(User, on_delete=models.CASCADE)
     accepted_bid = models.ForeignKey('Bid', null=True, blank=True, on_delete=models.SET_NULL, related_name='accepted_jobs')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='posted')
-    
+    completed_date = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ['-date_posted']
 
@@ -77,6 +78,12 @@ class Job(models.Model):
 
     def __str__(self):
         return f"{self.items_requested} by {self.posted_by.username}"
+
+    def mark_as_completed(self):
+        """Mark job as completed."""
+        self.status = 'completed'
+        self.completed_date = now()
+        self.save()
 
 
 class Profile(models.Model):

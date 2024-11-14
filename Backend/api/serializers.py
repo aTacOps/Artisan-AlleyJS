@@ -17,6 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
 # ProfileSerializer
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    recent_completed_jobs = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
@@ -28,8 +29,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'user': 'User instance is required to create a profile.'})
         return Profile.objects.create(user=user, **validated_data)
 
-# Other serializers follow here...
-
+    def get_recent_completed_jobs(self, obj):
+        return obj.get_recent_completed_jobs()
 
 class BidSerializer(serializers.ModelSerializer):
     """Serializer for bids, including currency fields and status."""
@@ -90,6 +91,8 @@ class JobSerializer(serializers.ModelSerializer):
     bid_count = serializers.IntegerField(read_only=True)
     average_bid = serializers.FloatField(read_only=True)
     average_bid_display = serializers.SerializerMethodField()
+    accepted_bid = BidSerializer(read_only=True)
+    completed_date = serializers.DateTimeField(read_only=True)
 
     def get_average_bid_display(self, obj):
         if not hasattr(obj, 'average_bid') or obj.average_bid is None:
@@ -105,9 +108,9 @@ class JobSerializer(serializers.ModelSerializer):
             'id', 'posted_by', 'in_game_name', 'server', 'node', 'items_requested',
             'item_category', 'gold', 'silver', 'copper', 'total_copper',
             'deadline', 'special_notes', 'date_posted', 'status', 'accepted_bid',
-            'bid_count', 'average_bid', 'average_bid_display', 'bids'  # Ensure 'bids' is included here
+            'bid_count', 'average_bid', 'average_bid_display', 'bids', 'completed_date'  # Ensure 'bids' is included here
         )
-        read_only_fields = ['bid_count', 'average_bid', 'average_bid_display', 'bids']
+        read_only_fields = ['bid_count', 'average_bid', 'average_bid_display', 'bids', 'completed_date']
 
     def validate(self, data):
         """Validate and calculate total_copper from gold, silver, and copper."""
