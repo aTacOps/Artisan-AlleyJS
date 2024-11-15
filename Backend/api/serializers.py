@@ -50,6 +50,7 @@ class BidSerializer(serializers.ModelSerializer):
             "server": job.server,
             "node": job.node,
             "status": job.status,
+            "deadline": job.deadline,
         }
 
     def get_proposed_price_display(self, obj):

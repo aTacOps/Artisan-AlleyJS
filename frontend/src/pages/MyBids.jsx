@@ -1,11 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react"; 
 import api from "../api";
 import "../styles/Jobs.css";
+import EditModal from "../components/EditModal";
 
 function MyBids() {
     const [bids, setBids] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [currentBid, setCurrentBid] = useState(null);
 
     const fetchMyBids = async () => {
         try {
@@ -15,6 +18,23 @@ function MyBids() {
             setError("Failed to fetch your bids. Please try again.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleEditBid = (bid) => {
+        setCurrentBid(bid);
+        setIsEditing(true);
+    };
+
+    const handleSubmitEdit = async (updatedBid) => {
+        try {
+            await api.put(`/api/bids/${updatedBid.id}/`, updatedBid);
+            alert("Bid updated successfully!");
+            fetchMyBids(); // Refresh bids
+            setIsEditing(false);
+        } catch (err) {
+            console.error("Error updating bid:", err);
+            alert("Failed to update bid.");
         }
     };
 
@@ -39,7 +59,7 @@ function MyBids() {
     if (error) return <div>{error}</div>;
 
     const activeBids = bids.filter((bid) => bid.job.status === "posted");
-    const acceptedBids = bids.filter((bid) => bid.job.status === "accepted")
+    const acceptedBids = bids.filter((bid) => bid.job.status === "accepted");
     const completedBids = bids.filter((bid) => bid.job.status === "completed");
 
     return (
@@ -68,16 +88,22 @@ function MyBids() {
                                 {bid.copper} copper
                             </p>
                             <p>
-                                <strong>Estimated Completion Date:</strong> {bid.estimated_completion_time || "Not specified"}
+                                <strong>Estimated Completion Date:</strong>{" "}
+                                {bid.estimated_completion_time || "Not specified"}
                             </p>
+                            <p>
+                                <strong>Deadline:</strong>{" "}
+                                {bid.job.deadline || "Not specified"}
+                            </p>
+                            <button onClick={() => handleEditBid(bid)}>Edit Bid</button>
                         </li>
                     ))}
                 </ul>
             )}
-            
+
             <h2>Accepted Bids</h2>
             {acceptedBids.length === 0 ? (
-                <p>No active bids.</p>
+                <p>No accepted bids.</p>
             ) : (
                 <ul className="jobs-list">
                     {acceptedBids.map((bid) => (
@@ -97,7 +123,12 @@ function MyBids() {
                                 {bid.copper} copper
                             </p>
                             <p>
-                                <strong>Estimated Completion Date:</strong> {bid.estimated_completion_time || "Not specified"}
+                                <strong>Estimated Completion Date:</strong>{" "}
+                                {bid.estimated_completion_time || "Not specified"}
+                            </p>
+                            <p>
+                                <strong>Deadline:</strong>{" "}
+                                {bid.job.deadline || "Not specified"}
                             </p>
                             <button onClick={() => handleMarkCompleted(bid.id)}>Mark as Completed</button>
                         </li>
@@ -130,11 +161,27 @@ function MyBids() {
                                 <strong>Status:</strong> {bid.job.status}
                             </p>
                             <p>
-                                <strong>Estimated Completion Date:</strong> {bid.estimated_completion_time || "Not specified"}
+                                <strong>Estimated Completion Date:</strong>{" "}
+                                {bid.estimated_completion_time || "Not specified"}
+                            </p>
+                            <p>
+                                <strong>Deadline:</strong>{" "}
+                                {bid.job.deadline || "Not specified"}
                             </p>
                         </li>
                     ))}
                 </ul>
+            )}
+
+            {isEditing && currentBid && (
+                <EditModal
+                    isOpen={isEditing}
+                    onClose={() => setIsEditing(false)}
+                    initialData={currentBid}
+                    onSubmit={handleSubmitEdit}
+                    type="Bid"
+                    canEditDescription={false} // Prevent editing the description
+                />
             )}
         </div>
     );

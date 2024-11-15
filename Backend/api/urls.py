@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import current_user
+from .views import current_user, MarkNotificationAsRead
 
 # Set up the DefaultRouter
 router = DefaultRouter()
@@ -19,6 +19,7 @@ urlpatterns = [
     
     # Notifications
     path('notifications/', views.NotificationListView.as_view(), name='notifications'),
+    path('notifications/<int:pk>/', MarkNotificationAsRead.as_view(), name='mark-notification-as-read'),
 
     # Nested route for job bids
     path(
@@ -33,6 +34,11 @@ urlpatterns = [
         views.BidViewSet.as_view({'get': 'my_bids'}),
         name='my-bids'
     ),
+
+    #Admin messaging
+    
+
+
 
     # Include router URLs (only include this once)
     path('', include(router.urls)),

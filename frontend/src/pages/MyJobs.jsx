@@ -48,6 +48,20 @@ function MyJobs() {
         setCurrentJob(job);
         setIsEditing(true);
     };
+    
+    const handleSubmitEdit = async (updatedJob) => {
+        try {
+            await api.put(`/api/jobs/${updatedJob.id}/`, updatedJob); // Update job
+            alert("Job updated successfully!"); // Notify job poster
+            fetchMyJobs(); // Refresh jobs after update
+            setIsEditing(false);
+        } catch (err) {
+            console.error("Error updating job:", err);
+            alert("Failed to update job.");
+        }
+    };
+    
+    
 
     const handleDeleteJob = async (jobId) => {
         if (window.confirm("Are you sure you want to delete this job?")) {
@@ -213,8 +227,9 @@ function MyJobs() {
                     isOpen={isEditing}
                     onClose={() => setIsEditing(false)}
                     initialData={currentJob}
-                    onSubmit={(updatedJob) => fetchMyJobs()}
+                    onSubmit={handleSubmitEdit}
                     type="Job"
+                    canEditDescription={true}
                 />
             )}
         </div>

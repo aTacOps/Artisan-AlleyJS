@@ -18,14 +18,35 @@ from django.db.models.functions import Coalesce
 from django.db.models import Q, Count, Avg
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import generics, filters
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 import logging
 from django.utils import timezone
-
+from django.utils.timezone import now
+from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
 
 
+
+@api_view(['POST'])
+def send_custom_message(request):
+    """Send a custom message to a user."""
+    user_id = request.data.get("user_id")
+    content = request.data.get("content")
+    
+    if not user_id or not content:
+        return Response({"error": "User ID and content are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(id=user_id)
+        Notification.objects.create(
+            recipient=user,
+            content=content,
+            type="custom_message",
+        )
+        return Response({"message": "Custom message sent successfully."}, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -125,7 +146,62 @@ class JobViewSet(viewsets.ModelViewSet):
         job.status = 'accepted'
         job.save()
 
+        Notification.objects.create(
+            recipient=bid.bidder,
+            content=f"Your bid for the job '{job.items_requested}' has been accepted!",
+            type='job_status',
+            link="/my-bids/",
+        )
+
+
         return Response({"message": "Bid accepted successfully."}, status=200)
+
+        
+    def update(self, request, *args, **kwargs):
+        job = self.get_object()
+        response = super().update(request, *args, **kwargs)
+
+        # Notify bidders about the job update
+        for bid in job.bids.all():
+            Notification.objects.create(
+                recipient=bid.bidder,
+                content=f"The job '{job.items_requested}' has been updated.",
+                type="job_update",
+                link=f"/my-bids/"
+            )
+
+        return response
+
+    @action(detail=True, methods=['post'], url_path='mark-delivered')
+    def mark_as_delivered(self, request, pk=None):
+        job = self.get_object()
+        if job.status != 'completed':
+            return Response({"error": "Job must be completed before marking as delivered."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark the job as delivered
+        job.status = 'delivered'
+        job.delivered_date = now()
+        job.save()
+
+        # Update the poster's profile stats
+        profile = job.posted_by.profile
+        profile.completed_jobs += 1
+        profile.add_to_history(job.items_requested, job.delivered_date)
+
+        if job.accepted_bid:
+            bidder_profile = job.accepted_bid.bidder.profile
+            bidder_profile.completed_jobs += 1
+            bidder_profile.add_to_history(job.items_requested, job.delivered_date)
+
+        Notification.objects.create(
+            recipient=job.accepted_bid.bidder,
+            content=f"The job '{job.items_requested}' has been marked as delivered!",
+            type='job_status',
+            link="/my-bids/",
+        )
+
+        return Response({"message": "Job marked as delivered successfully."}, status=status.HTTP_200_OK)
 
 
 
@@ -162,6 +238,12 @@ class BidViewSet(viewsets.ModelViewSet):
 
         serializer.save(bidder=self.request.user, job=job)
 
+        Notification.objects.create(
+            recipient=job.posted_by,
+            content=f"A new bid has been placed on your job '{job.items_requested}'.",
+            type='new_bid',
+            link="/my-jobs/",
+        )
 
 
     @action(detail=True, methods=['post'])
@@ -205,28 +287,15 @@ class BidViewSet(viewsets.ModelViewSet):
         job.completed_date = timezone.now()
         job.save()
 
+        Notification.objects.create(
+            recipient=job.posted_by,
+            content=f"The job '{job.items_requested}' has been marked as completed by the bidder.",
+            type='bid_update',
+            link="/my-jobs/",
+        )
+
+
         return Response({"message": "Job marked as completed successfully."}, status=200)
-
-    @action(detail=True, methods=['post'], url_path='mark-delivered')
-    def mark_as_delivered(self, request, pk=None):
-        job = self.get_object()
-        if job.status != 'completed':
-            return Response({"error": "Job must be completed before marking as delivered."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        # Mark the job as delivered
-        job.status = 'delivered'
-        job.delivered_date = now()
-        job.save()
-
-        # Update the poster's profile stats
-        profile = job.posted_by.profile
-        profile.completed_jobs += 1
-        profile.add_to_history(job.items_requested, job.delivered_date)
-
-        return Response({"message": "Job marked as delivered successfully."}, status=status.HTTP_200_OK)
-
-
 
     @action(detail=False, methods=['get'], url_path='my-bids')
     def my_bids(self, request):
@@ -236,20 +305,26 @@ class BidViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
         bid = self.get_object()
-        if bid.accepted:
-            return Response({"error": "Cannot edit an accepted bid."}, status=400)
-        return super().update(request, *args, **kwargs)
+        job = bid.job
+
+        # Notify the job poster of the bid update
+        Notification.objects.create(
+            recipient=job.posted_by,
+            content=f"A bid on your job '{job.items_requested}' has been updated.",
+            type='bid_update',
+            link="/my-jobs/",
+        )
+
+        return response
+
 
     def destroy(self, request, *args, **kwargs):
         bid = self.get_object()
         if bid.accepted:
             return Response({"error": "Cannot delete an accepted bid."}, status=400)
         return super().destroy(request, *args, **kwargs)
-
-
-from rest_framework.decorators import action
-from rest_framework.response import Response
 
 class ProfileViewSet(viewsets.GenericViewSet):
     queryset = Profile.objects.all()
@@ -349,7 +424,19 @@ class CertificationRequestViewSet(viewsets.ModelViewSet):
 # Notification views
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Notification.objects.filter(recipient=self.request.user).order_by('-timestamp')
+
+class MarkNotificationAsRead(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        try:
+            notification = Notification.objects.get(pk=pk, recipient=request.user)
+            notification.is_read = True
+            notification.save()
+            return Response({"message": "Notification marked as read."}, status=status.HTTP_200_OK)
+        except Notification.DoesNotExist:
+            return Response({"error": "Notification not found."}, status=status.HTTP_404_NOT_FOUND)

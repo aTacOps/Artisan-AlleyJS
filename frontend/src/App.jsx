@@ -10,6 +10,7 @@ import PostJob from "./pages/PostJob";
 import MyJobs from "./pages/MyJobs"; // Add this import
 import MyBids from "./pages/MyBids";
 import Profile from "./pages/Profile";
+import Inbox from "./pages/Inbox";
 
 function App() {
     return (
@@ -26,6 +27,7 @@ function App() {
                     <Route path="/post-job" element={<PostJob />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/profile/:userId" element={<Profile />} />
+                    <Route path="/inbox" element={<Inbox />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
