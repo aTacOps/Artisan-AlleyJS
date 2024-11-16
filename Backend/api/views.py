@@ -282,7 +282,7 @@ class JobViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [SearchFilter, DjangoFilterBackend, OrderingFilter]
     search_fields = ['items_requested', 'server', 'node', 'item_category']
-    filterset_fields = ['item_category']
+    filterset_fields = ['item_category', 'server', 'node']
     ordering_fields = ['average_bid', 'bid_count', 'deadline']
 
     def get_queryset(self):

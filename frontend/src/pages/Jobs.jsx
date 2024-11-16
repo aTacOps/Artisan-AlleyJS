@@ -111,17 +111,44 @@ function Jobs() {
           <option value="Other">Other</option>
         </select>
 
-        <label htmlFor="ordering">Sort by:</label>
-        <select name="ordering" value={filters.ordering} onChange={handleFilterChange}>
-          <option value="">Default</option>
-          <option value="average_bid">Average Bid</option>
-          <option value="-average_bid">Average Bid (Descending)</option>
-          <option value="bid_count">Total Bids</option>
-          <option value="-bid_count">Total Bids (Descending)</option>
-          <option value="deadline">Deadline</option>
-          <option value="-deadline">Deadline (Descending)</option>
-        </select>
-      </div>
+              {/* Server */}
+          <label htmlFor="server">Server:</label>
+          <select
+            name="server"
+            value={filters.server}
+            onChange={handleFilterChange}
+          >
+            <option value="">All Servers</option>
+            <option value="Server1">Server1</option>
+            <option value="Server2">Server2</option>
+            {/* Add more servers here */}
+          </select>
+
+          {/* Node */}
+          <label htmlFor="node">Node:</label>
+          <select
+            name="node"
+            value={filters.node}
+            onChange={handleFilterChange}
+          >
+            <option value="">All Nodes</option>
+            <option value="Node1">Node1</option>
+            <option value="Node2">Node2</option>
+            {/* Add more nodes here */}
+          </select>
+
+          {/* Sorting */}
+          <label htmlFor="ordering">Sort by:</label>
+          <select name="ordering" value={filters.ordering} onChange={handleFilterChange}>
+            <option value="">Default</option>
+            <option value="average_bid">Average Bid</option>
+            <option value="-average_bid">Average Bid (Descending)</option>
+            <option value="bid_count">Total Bids</option>
+            <option value="-bid_count">Total Bids (Descending)</option>
+            <option value="deadline">Deadline</option>
+            <option value="-deadline">Deadline (Descending)</option>
+          </select>
+        </div>
 
       {jobs.length === 0 ? (
         <p>No jobs available at the moment.</p>
