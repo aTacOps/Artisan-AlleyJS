@@ -1,15 +1,18 @@
 .post-job-container {
     max-width: 600px;
-    margin: 0 auto;
+    margin: 20px auto;
     padding: 20px;
-    background-color: #fff;
+    background-image: url('../assets/heading-bg.jpg'); /* Form background */
+    background-size: cover;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: white;
 }
 
 .post-job-form label {
     display: block;
     margin-bottom: 15px;
+    color: white;
 }
 
 .post-job-form input,
@@ -22,19 +25,12 @@
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
-}
-
-.price-input {
-    display: flex;
-    gap: 10px;
-}
-
-.price-input input {
-    flex: 1;
+    color: black; /* For input text */
 }
 
 .post-job-button {
-    background-color: #007bff;
+    background-image: url('../assets/main-bg.jpg'); /* Button background */
+    background-size: cover;
     color: white;
     padding: 10px 20px;
     border: none;
@@ -44,9 +40,8 @@
 }
 
 .post-job-button:hover {
-    background-color: #0056b3;
+    opacity: 0.9;
 }
-
 
 .error {
     color: red;

@@ -35,8 +35,16 @@ urlpatterns = [
         name='my-bids'
     ),
 
-    #Admin messaging
-    
+    #Admin
+    path("admin/users/", views.AdminUserList.as_view(), name="admin-users"),
+    path("admin/jobs/", views.AdminJobList.as_view(), name="admin-jobs"),
+    path("admin/bids/", views.AdminBidList.as_view(), name="admin-bids"),
+    path("admin/notifications/", views.AdminNotificationList.as_view(), name="admin-notifications"),
+    path("admin/delete-old/", views.DeleteOldEntries.as_view(), name="delete-old"),
+    path("admin/users/<int:pk>/", views.AdminUserDetail.as_view(), name="admin-user-detail"),
+    path("admin/jobs/<int:pk>/", views.AdminJobDetail.as_view(), name="admin-job-detail"),
+    path("admin/bids/<int:pk>/", views.AdminBidDetail.as_view(), name="admin-bid-detail"),
+    path("admin/notifications/<int:pk>/", views.AdminNotificationDetail.as_view(), name="admin-notification-detail"),
 
 
 

@@ -1,28 +1,66 @@
 # views.py
 
-from rest_framework import generics, status, permissions, viewsets
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
-from django.contrib.auth import login
-from django.contrib import messages
-from .models import (
-    Profile, CertificationRequest, Store, Job, Bid, Notification, ServiceRequest
-)
-from django.contrib.auth.models import User
-from .serializers import (
-    UserSerializer, ProfileSerializer, JobSerializer, BidSerializer,
-    CertificationRequestSerializer, StoreSerializer, ServiceRequestSerializer, NotificationSerializer
-)
-from django.db.models.functions import Coalesce
-from django.db.models import Q, Count, Avg
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework import generics, filters
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+# General imports
 import logging
 from django.utils import timezone
-from django.utils.timezone import now
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
+from django.utils.timezone import now
+
+# Django REST Framework imports
+from rest_framework import (
+    generics,
+    status,
+    permissions,
+    viewsets,
+    filters
+)
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.generics import ListAPIView
+from rest_framework.filters import SearchFilter
+
+# Django Filter
+from django_filters.rest_framework import DjangoFilterBackend
+
+# Models and serializers
+from .models import (
+    Profile,
+    CertificationRequest,
+    Store,
+    Job,
+    Bid,
+    Notification,
+    ServiceRequest,
+)
+from .serializers import (
+    UserSerializer,
+    ProfileSerializer,
+    JobSerializer,
+    BidSerializer,
+    CertificationRequestSerializer,
+    StoreSerializer,
+    ServiceRequestSerializer,
+    NotificationSerializer,
+)
+
+# Django authentication and messages
+from django.contrib.auth.models import User
+from django.contrib.auth import login
+from django.contrib import messages
+
+# Django database functions
+from django.db.models import Q, Count, Avg
+from django.db.models.functions import Coalesce
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +90,19 @@ def send_custom_message(request):
 @permission_classes([IsAuthenticated])
 def current_user(request):
     logger.debug(f"Authorization Header: {request.headers.get('Authorization')}")
+    
     if not request.user.is_authenticated:
         return Response({"detail": "Authentication credentials were not provided."}, status=401)
 
     user_data = {
         "id": request.user.id,
         "username": request.user.username,
+        "email": request.user.email,
+        "is_staff": request.user.is_staff,
+        "is_superuser": request.user.is_superuser,
     }
     return Response(user_data)
+
 
 class SignupView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -82,34 +125,185 @@ class SignupView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+class AdminUserList(ListAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [SearchFilter]
+    search_fields = ["username", "email"]
+
+    def get(self, request):
+        users = User.objects.all().values("id", "username", "email", "is_staff", "is_active")
+        return Response(users)
+
+class AdminUserDetail(APIView):
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, pk):
+        """Edit user details."""
+        user = get_object_or_404(User, pk=pk)
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        """Delete a user."""
+        user = get_object_or_404(User, pk=pk)
+        user.delete()
+        return Response({"message": "User deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+class AdminJobList(ListAPIView):
+    queryset = Job.objects.all()
+    serializer_class = JobSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [SearchFilter]
+    search_fields = ["username", "item_description"]
+
+    def get(self, request):
+        jobs = Job.objects.all().values()
+        return Response(jobs)
+
+class AdminJobDetail(APIView):
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, pk):
+        job = get_object_or_404(Job, pk=pk)
+        serializer = JobSerializer(job, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        job = get_object_or_404(Job, pk=pk)
+        job.delete()
+        return Response({"message": "Job deleted successfully."}, status=status.HTTP_204_NO_CONTENT)        
+
+class AdminBidList(ListAPIView):
+    queryset = Bid.objects.all()
+    serializer_class = BidSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [SearchFilter]
+    search_fields = ["username", "item_description"]
+
+    def get(self, request):
+        bids = Bid.objects.all().values()
+        return Response(bids)
+
+class AdminBidDetail(APIView):
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, pk):
+        bid = get_object_or_404(Bid, pk=pk)
+        serializer = BidSerializer(bid, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        bid = get_object_or_404(Bid, pk=pk)
+        bid.delete()
+        return Response({"message": "Bid deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+class AdminNotificationList(ListAPIView):
+    queryset = Notification.objects.all()
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [SearchFilter]
+    search_fields = ["username", "type"]
+
+    def get(self, request):
+        notifications = Notification.objects.all().values()
+        return Response(notifications)
+
+class AdminNotificationDetail(APIView):
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, pk):
+        notification = get_object_or_404(Notification, pk=pk)
+        serializer = NotificationSerializer(notification, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        notification = get_object_or_404(Notification, pk=pk)
+        cotification.delete()
+        return Response({"message": "Notification deleted successfully."}, status=status.HTTP_204_NO_CONTENT)   
+
+class DeleteOldEntries(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        threshold_date = now() - timedelta(days=100)
+        jobs_deleted = Job.objects.filter(date_posted__lt=threshold_date).delete()
+        bids_deleted = Bid.objects.filter(date_bid__lt=threshold_date).delete()
+        notifications_deleted = Notification.objects.filter(timestamp__lt=threshold_date).delete()
+        return Response({
+            "jobs_deleted": jobs_deleted,
+            "bids_deleted": bids_deleted,
+            "notifications_deleted": notifications_deleted,
+        })
+
 
 
 # Job views
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+from django.utils.timezone import now
+from django.db.models import Count, Avg
+from django.db.models.functions import Coalesce
+
+from .models import Job, Notification
+from .serializers import JobSerializer, BidSerializer
+
+
 class JobViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing Jobs.
+    Provides filtering, ordering, search, and custom actions for jobs.
+    """
     queryset = Job.objects.annotate(
         bid_count=Coalesce(Count('bids'), 0),
-        average_bid=Coalesce(Avg('bids__proposed_price_copper'), 0.0)  # Average in copper
-    ).select_related('accepted_bid', 'accepted_bid__bidder').order_by('-date_posted')
+        average_bid=Coalesce(Avg('bids__proposed_price_copper'), 0.0)
+    ).select_related('accepted_bid').order_by('-date_posted')
     serializer_class = JobSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    ordering_fields = ['date_posted', 'deadline', 'status',]
+    filter_backends = [SearchFilter, DjangoFilterBackend, OrderingFilter]
+    search_fields = ['items_requested', 'server', 'node', 'item_category']
+    filterset_fields = ['item_category']
+    ordering_fields = ['average_bid', 'bid_count', 'deadline']
 
     def get_queryset(self):
-        # Debugging: Print annotated fields
+        """Filter queryset to only 'posted' jobs by default."""
         queryset = super().get_queryset()
-        logger.debug(f"Jobs Queryset: {queryset}")
-        return queryset
+        return queryset.filter(status='posted')
 
     def perform_create(self, serializer):
+        """Associate the posted job with the currently authenticated user."""
         serializer.save(posted_by=self.request.user)
 
     @action(detail=False, methods=['get'], url_path='my-jobs')
     def my_jobs(self, request):
-        jobs = Job.objects.filter(posted_by=request.user).annotate(
+        """
+        Retrieve jobs posted by the authenticated user.
+        Includes bid count and average bid as annotations.
+        """
+        jobs = self.get_queryset().filter(posted_by=request.user).annotate(
             bid_count=Count('bids'),
             average_bid=Avg('bids__proposed_price_copper')
-        ).select_related('accepted_bid', 'accepted_bid__bidder')
+        )
         serializer = self.get_serializer(jobs, many=True)
         return Response(serializer.data)
 
@@ -117,10 +311,11 @@ class JobViewSet(viewsets.ModelViewSet):
     def bids(self, request, pk=None):
         """
         Retrieve all bids for a specific job.
+        Ensure only the job poster can view the bids.
         """
         job = self.get_object()
         if job.posted_by != request.user:
-            return Response({"detail": "Not authorized to view bids for this job."}, status=403)
+            return Response({"detail": "Not authorized to view bids for this job."}, status=status.HTTP_403_FORBIDDEN)
 
         bids = job.bids.all()
         serializer = BidSerializer(bids, many=True)
@@ -128,36 +323,42 @@ class JobViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='accept-bid')
     def accept_bid(self, request, pk=None):
+        """
+        Accept a bid for a specific job.
+        Ensure only one bid can be accepted for the job.
+        """
         job = self.get_object()
         bid_id = request.data.get('bid_id')
         if not bid_id:
-            return Response({"error": "Bid ID is required."}, status=400)
+            return Response({"error": "Bid ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         bid = job.bids.filter(id=bid_id).first()
         if not bid:
-            return Response({"error": "Bid not found."}, status=404)
+            return Response({"error": "Bid not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if job.accepted_bid:
-            return Response({"error": "A bid has already been accepted for this job."}, status=400)
+            return Response({"error": "A bid has already been accepted for this job."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Accept the bid and update job status
         bid.accepted = True
         bid.save()
         job.accepted_bid = bid
         job.status = 'accepted'
         job.save()
 
+        # Notify the bidder
         Notification.objects.create(
             recipient=bid.bidder,
             content=f"Your bid for the job '{job.items_requested}' has been accepted!",
             type='job_status',
             link="/my-bids/",
         )
+        return Response({"message": "Bid accepted successfully."}, status=status.HTTP_200_OK)
 
-
-        return Response({"message": "Bid accepted successfully."}, status=200)
-
-        
     def update(self, request, *args, **kwargs):
+        """
+        Update a job and notify all bidders of the changes.
+        """
         job = self.get_object()
         response = super().update(request, *args, **kwargs)
 
@@ -169,22 +370,25 @@ class JobViewSet(viewsets.ModelViewSet):
                 type="job_update",
                 link=f"/my-bids/"
             )
-
         return response
 
     @action(detail=True, methods=['post'], url_path='mark-delivered')
     def mark_as_delivered(self, request, pk=None):
+        """
+        Mark a job as delivered.
+        Only applicable if the job is already completed.
+        """
         job = self.get_object()
         if job.status != 'completed':
             return Response({"error": "Job must be completed before marking as delivered."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Mark the job as delivered
+        # Mark as delivered
         job.status = 'delivered'
         job.delivered_date = now()
         job.save()
 
-        # Update the poster's profile stats
+        # Update user stats
         profile = job.posted_by.profile
         profile.completed_jobs += 1
         profile.add_to_history(job.items_requested, job.delivered_date)
@@ -194,16 +398,14 @@ class JobViewSet(viewsets.ModelViewSet):
             bidder_profile.completed_jobs += 1
             bidder_profile.add_to_history(job.items_requested, job.delivered_date)
 
+        # Notify bidder of delivery
         Notification.objects.create(
             recipient=job.accepted_bid.bidder,
             content=f"The job '{job.items_requested}' has been marked as delivered!",
             type='job_status',
             link="/my-bids/",
         )
-
         return Response({"message": "Job marked as delivered successfully."}, status=status.HTTP_200_OK)
-
-
 
 
 # Bid views

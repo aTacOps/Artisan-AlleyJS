@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
     const fetchCurrentUser = async () => {
         try {
             const response = await api.get("/api/current-user/");
-            setCurrentUser(response.data);
+            setCurrentUser(response.data); // Ensure response includes `is_staff` or `is_superuser`
         } catch (err) {
             console.error("Failed to fetch current user:", err);
             setCurrentUser(null);
@@ -40,8 +40,11 @@ export function AuthProvider({ children }) {
         setCurrentUser(null); // Clear user details on logout
     };
 
+    // Check if the user is an admin
+    const isAdmin = currentUser?.is_staff || currentUser?.is_superuser || false;
+
     return (
-        <AuthContext.Provider value={{ isAuthenticated, currentUser, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, currentUser, isAdmin, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

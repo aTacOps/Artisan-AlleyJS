@@ -1,38 +1,41 @@
-/* Center the entire content */
 .home-container {
+  background-image: url('../assets/dark-bg.jpg'); /* Page background */
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+  color: white;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100vh; /* Full viewport height */
-  text-align: center; /* Align text to center */
+  height: 100vh;
+  text-align: center;
   font-family: Arial, sans-serif;
   margin: 0;
 }
 
-/* Buttons container for spacing */
 .home-buttons-container {
   display: flex;
-  gap: 10px; /* Spacing between buttons */
+  gap: 10px;
   margin-top: 20px;
 }
 
-/* Button styles */
 .home-button {
-  background-color: #007bff; /* Blue background */
+  background-image: url('../assets/main-bg.jpg'); /* Button background */
+  background-size: cover;
   color: white; /* White text */
-  border: none; /* Remove default borders */
+  border: none;
   padding: 10px 20px;
   border-radius: 5px;
   cursor: pointer;
   font-size: 16px;
-  transition: background-color 0.2s ease-in-out;
+  transition: transform 0.2s ease-in-out;
 }
 
 .home-button:hover {
-  background-color: #0056b3; /* Darker blue on hover */
+  transform: scale(1.05); /* Zoom effect */
 }
 
 .home-button:active {
-  background-color: #003d80; /* Even darker blue when active */
+  transform: scale(0.95);
 }

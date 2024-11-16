@@ -85,9 +85,6 @@ function Profile() {
                                         <strong>Item Requested:</strong> {job.items_requested}
                                     </p>
                                     <p>
-                                        <strong>Deadline:</strong> {job.deadline}
-                                    </p>
-                                    <p>
                                         <strong>Date Completed:</strong> {job.delivered_date}
                                     </p>
                                 </li>

@@ -36,6 +36,7 @@ class Job(models.Model):
         ('Lumber Milling', 'Lumber Milling'),
         ('Metalworking', 'Metalworking'),
         ('Mining', 'Mining'),
+        ('Other', 'Other'),
         ('Scribing', 'Scribing'),
         ('Stonemasonry', 'Stonemasonry'),
         ('Tailoring', 'Tailoring'),

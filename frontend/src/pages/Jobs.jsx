@@ -11,6 +11,10 @@ function Jobs() {
   const [currentUser, setCurrentUser] = useState(null);
   const [nextPage, setNextPage] = useState(null);
   const [prevPage, setPrevPage] = useState(null);
+  const [filters, setFilters] = useState({
+    item_category: "",
+    ordering: "",
+  });
 
   // Helper function to format currency
   const formatCurrency = (copper) => {
@@ -24,16 +28,11 @@ function Jobs() {
   const fetchJobs = async (url = "/api/jobs/") => {
     try {
       const [jobsResponse, userResponse] = await Promise.all([
-        api.get(url),
+        api.get(url, { params: filters }),
         api.get("/api/current-user/"), // Endpoint to fetch current user
       ]);
 
-      // Filter jobs to show only those with status "posted"
-      const filteredJobs = jobsResponse.data.results.filter(
-        (job) => job.status === "posted"
-      );
-
-      setJobs(filteredJobs);
+      setJobs(jobsResponse.data.results);
       setNextPage(jobsResponse.data.next);
       setPrevPage(jobsResponse.data.previous);
       setCurrentUser(userResponse.data);
@@ -47,12 +46,20 @@ function Jobs() {
 
   useEffect(() => {
     fetchJobs();
-  }, []);
+  }, [filters]); // Refetch jobs when filters change
 
   // Check if the user has already placed a bid on the job
   const hasUserBid = (job) => {
     if (!currentUser) return false;
     return job.bids.some((bid) => bid.bidder.id === currentUser.id);
+  };
+
+  // Handle filter changes
+  const handleFilterChange = (e) => {
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      [e.target.name]: e.target.value,
+    }));
   };
 
   // Loading state
@@ -69,6 +76,53 @@ function Jobs() {
   return (
     <div className="jobs-container">
       <h1>Available Jobs</h1>
+
+      {/* Filters */}
+      <div className="filters">
+        <label htmlFor="item_category">Filter by Item Category:</label>
+        <select
+          name="item_category"
+          value={filters.item_category}
+          onChange={handleFilterChange}
+        >
+          <option value="">All Categories</option>
+          <option value="Alchemy">Alchemy</option>
+          <option value="Animal Husbandry">Animal Husbandry</option>
+          <option value="Arcane Engineering">Arcane Engineering</option>
+          <option value="Armor Smithing">Armor Smithing</option>
+          <option value="Carpentry">Carpentry</option>
+          <option value="Cooking">Cooking</option>
+          <option value="Farming">Farming</option>
+          <option value="Fishing">Fishing</option>
+          <option value="Herbalism">Herbalism</option>
+          <option value="Hunting">Hunting</option>
+          <option value="Jewel Cutting">Jewel Cutting</option>
+          <option value="Leatherworking">Leatherworking</option>
+          <option value="Lumberjacking">Lumberjacking</option>
+          <option value="Lumber Milling">Lumber Milling</option>
+          <option value="Metalworking">Metalworking</option>
+          <option value="Mining">Mining</option>
+          <option value="Scribing">Scribing</option>
+          <option value="Stonemasonry">Stonemasonry</option>
+          <option value="Tailoring">Tailoring</option>
+          <option value="Tanning">Tanning</option>
+          <option value="Weapon Smithing">Weapon Smithing</option>
+          <option value="Weaving">Weaving</option>
+          <option value="Other">Other</option>
+        </select>
+
+        <label htmlFor="ordering">Sort by:</label>
+        <select name="ordering" value={filters.ordering} onChange={handleFilterChange}>
+          <option value="">Default</option>
+          <option value="average_bid">Average Bid</option>
+          <option value="-average_bid">Average Bid (Descending)</option>
+          <option value="bid_count">Total Bids</option>
+          <option value="-bid_count">Total Bids (Descending)</option>
+          <option value="deadline">Deadline</option>
+          <option value="-deadline">Deadline (Descending)</option>
+        </select>
+      </div>
+
       {jobs.length === 0 ? (
         <p>No jobs available at the moment.</p>
       ) : (

@@ -1,7 +1,13 @@
 .loader-container {
+  background-image: url('../assets/dark-bg.jpg'); /* Page background */
+  background-size: cover;
+  background-attachment: fixed;
+  background-position: center;
+  color: white;
   display: flex;
   justify-content: center;
   align-items: center;
+  height: 100vh;
 }
 
 .loader {
@@ -15,9 +21,9 @@
 
 @keyframes spin {
   0% {
-    transform: rotate(0deg);
+      transform: rotate(0deg);
   }
   100% {
-    transform: rotate(360deg);
+      transform: rotate(360deg);
   }
 }

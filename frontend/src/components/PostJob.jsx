@@ -92,6 +92,7 @@ function PostJob() {
                         "Lumber Milling",
                         "Metalworking",
                         "Mining",
+                        "Other",
                         "Scribing",
                         "Stonemasonry",
                         "Tailoring",
